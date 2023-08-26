@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE block SET tx_fetched = 0 WHERE tx_fetched = 2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "a60e43db6273aaef2316bb231aae89e71698d3a98ebe5e96d23b9cf7fa1dd893"
+}

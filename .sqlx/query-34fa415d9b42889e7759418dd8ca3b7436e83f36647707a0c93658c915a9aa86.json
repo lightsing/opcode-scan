@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT block_number FROM block_status ORDER BY block_number DESC LIMIT 1",
+  "query": "SELECT block_number FROM block ORDER BY block_number DESC LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "a001f37177168acb97209aa3de5e3f50dbf39c4e7eb1e0b507fa91a1bd665aa4"
+  "hash": "34fa415d9b42889e7759418dd8ca3b7436e83f36647707a0c93658c915a9aa86"
 }

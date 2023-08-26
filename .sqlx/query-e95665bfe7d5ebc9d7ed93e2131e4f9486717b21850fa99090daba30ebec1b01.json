@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT tx_hash FROM tx_status WHERE tx_analyzed = 0 LIMIT 1",
+  "query": "SELECT tx_hash FROM tx WHERE tx_analyzed = 0 LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       true
     ]
   },
-  "hash": "a9414794a3da768e8cb51acff142a32eef835a938625e3d3ea0c388038eebc2f"
+  "hash": "e95665bfe7d5ebc9d7ed93e2131e4f9486717b21850fa99090daba30ebec1b01"
 }

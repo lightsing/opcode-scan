@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO tx (block_number, tx_index, tx_hash) VALUES (?, ?, ?) ON CONFLICT(tx_hash) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "e4d2509d4ba4742ccc9c40c11ae1102b63f023d2073eedad3605b8095cf8d341"
+}

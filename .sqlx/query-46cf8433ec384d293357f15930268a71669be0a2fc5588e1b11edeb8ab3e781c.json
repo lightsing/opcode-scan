@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT block_number FROM block_status WHERE tx_fetched = 0 LIMIT 1",
+  "query": "SELECT block_number FROM block WHERE tx_fetched = 0 LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "08b5f8520a8c9d24d23fb6ec195750b138c6227bf8d650ce16635565b99f14cb"
+  "hash": "46cf8433ec384d293357f15930268a71669be0a2fc5588e1b11edeb8ab3e781c"
 }
