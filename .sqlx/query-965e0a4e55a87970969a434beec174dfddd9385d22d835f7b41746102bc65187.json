@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO block_status (block_number) VALUES (?) ON CONFLICT(block_number) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "965e0a4e55a87970969a434beec174dfddd9385d22d835f7b41746102bc65187"
+}

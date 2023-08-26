@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE tx_status SET tx_analyzed = 0 WHERE tx_analyzed = 2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "40fd8cff4540fc4f80a0ed51155f24ddfdc246deb7e132dab1e55cf74424aa53"
+}

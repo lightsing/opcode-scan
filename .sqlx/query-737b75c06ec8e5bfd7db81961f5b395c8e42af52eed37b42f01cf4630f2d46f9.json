@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO opcode_statistics (block_number, opcode, count) VALUES (?, ?, ?) ON CONFLICT(block_number, opcode) DO UPDATE SET count = count + ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "737b75c06ec8e5bfd7db81961f5b395c8e42af52eed37b42f01cf4630f2d46f9"
+}

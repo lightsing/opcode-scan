@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tx_hash FROM tx_status WHERE tx_analyzed = 0 LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "tx_hash",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "a9414794a3da768e8cb51acff142a32eef835a938625e3d3ea0c388038eebc2f"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE block_status SET tx_fetched = 1 WHERE block_number = ? AND tx_fetched = 2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "9f2a287c8cf904b1642d9d8478a4430785682ee65a75f0654f3f81ae0e7594c6"
+}

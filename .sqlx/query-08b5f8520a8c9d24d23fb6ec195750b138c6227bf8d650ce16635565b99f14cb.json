@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT block_number FROM block_status WHERE tx_fetched = 0 LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "block_number",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "08b5f8520a8c9d24d23fb6ec195750b138c6227bf8d650ce16635565b99f14cb"
+}
