@@ -636,7 +636,6 @@ impl From<u8> for OpcodeId {
             0x45u8 => OpcodeId::GASLIMIT,
             0x46u8 => OpcodeId::CHAINID,
             0x47u8 => OpcodeId::SELFBALANCE,
-            #[cfg(not(feature = "scroll"))]
             0x48u8 => OpcodeId::BASEFEE,
             0x54u8 => OpcodeId::SLOAD,
             0x55u8 => OpcodeId::SSTORE,
@@ -652,7 +651,6 @@ impl From<u8> for OpcodeId {
             0xf2u8 => OpcodeId::CALLCODE,
             0xf4u8 => OpcodeId::DELEGATECALL,
             0xfau8 => OpcodeId::STATICCALL,
-            #[cfg(not(feature = "scroll"))]
             0xffu8 => OpcodeId::SELFDESTRUCT,
             b => OpcodeId::INVALID(b),
         }
