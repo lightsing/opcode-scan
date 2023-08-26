@@ -76,6 +76,7 @@ pub async fn handle_block(
 }
 
 pub async fn handle_tx(
+    worker_id: usize,
     pool: SqlitePool,
     provider: Provider<impl JsonRpcClient>,
 ) -> anyhow::Result<()> {
@@ -83,21 +84,21 @@ pub async fn handle_tx(
         let tx_hash = acquire_tx_task(&pool).await?;
         if tx_hash.is_none() {
             // sleep
-            info!("no tx task, sleep");
+            info!(worker_id, "no tx task, sleep");
             tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
             continue;
         }
         let tx_hash = tx_hash.unwrap();
         let tx = provider.get_transaction_receipt(tx_hash).await?.unwrap();
         if tx.status.unwrap().as_u64() == 0 {
-            info!("skip failed tx {}", tx_hash);
+            info!(worker_id, "skip failed tx {}", tx_hash);
             mark_tx_task_analyzed(&pool, tx_hash).await?;
             continue;
         }
         let contract_address = tx.contract_address.unwrap();
         info!(
-            "analyze tx {} deployed to contract {}",
-            tx_hash, contract_address
+            worker_id,
+            "analyze tx {} deployed to contract {}", tx_hash, contract_address
         );
         let code = provider.get_code(contract_address, None).await?;
         let ops = Bytecode::from(code.to_vec());
@@ -113,15 +114,17 @@ pub async fn handle_tx(
             .into_iter()
             .enumerate()
             .filter(|(_, count)| *count > 0);
+        let mut trans = pool.begin().await?;
         for (opcode, count) in count {
             append_opcode_statistics(
-                &pool,
+                &mut trans,
                 tx.block_number.unwrap().as_u64(),
                 opcode as u8,
                 count as u64,
             )
             .await?;
         }
+        trans.commit().await?;
         mark_tx_task_analyzed(&pool, tx_hash).await?;
     }
 }

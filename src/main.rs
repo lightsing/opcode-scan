@@ -32,12 +32,12 @@ async fn main() -> anyhow::Result<()> {
                 provider::http_provider(key).await,
             ));
         }
+        tokio::spawn(tasks::handle_tx(
+            idx,
+            pool.clone(),
+            provider::http_provider(key).await,
+        ));
     }
-
-    tokio::spawn(tasks::handle_tx(
-        pool.clone(),
-        provider::http_provider(HTTP_PROVIDER[0]).await,
-    ));
 
     listener.await??;
     Ok(())

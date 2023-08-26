@@ -1,7 +1,7 @@
 use crate::consts::{DB_PATH, SHANGHAI_FORK};
 use ethers::prelude::*;
 use sqlx::sqlite::SqlitePoolOptions;
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool, Transaction};
 
 pub async fn init_sqlite() -> Result<SqlitePool, sqlx::Error> {
     let pool = SqlitePoolOptions::new()
@@ -131,7 +131,7 @@ pub async fn mark_tx_task_analyzed(pool: &SqlitePool, tx_hash: H256) -> Result<(
 }
 
 pub async fn append_opcode_statistics(
-    pool: &SqlitePool,
+    tx: &mut Transaction<'_, Sqlite>,
     block_number: u64,
     opcode: u8,
     count: u64,
@@ -146,7 +146,7 @@ pub async fn append_opcode_statistics(
         count,
         count,
     )
-        .execute(pool)
+        .execute(tx.as_mut())
         .await?;
     Ok(())
 }
