@@ -128,17 +128,15 @@ pub async fn handle_tx(
             .into_iter()
             .enumerate()
             .filter(|(_, count)| *count > 0);
-        let mut trans = pool.begin().await?;
         for (opcode, count) in count {
             append_opcode_statistics(
-                &mut trans,
+                &pool,
                 tx.block_number.unwrap().as_u64(),
                 opcode as u8,
                 count as u64,
             )
             .await?;
         }
-        trans.commit().await?;
         mark_tx_task_analyzed(&pool, tx_hash).await?;
     }
 }

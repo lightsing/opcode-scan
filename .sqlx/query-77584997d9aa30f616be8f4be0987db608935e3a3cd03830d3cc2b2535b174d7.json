@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE tx\n        SET tx_analyzed = 2\n        WHERE tx_hash = (SELECT tx_hash FROM tx WHERE tx_analyzed = 0 LIMIT 1)\n        RETURNING tx_hash\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "tx_hash",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "77584997d9aa30f616be8f4be0987db608935e3a3cd03830d3cc2b2535b174d7"
+}
