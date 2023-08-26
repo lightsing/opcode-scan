@@ -1,3 +1,4 @@
+use crate::consts::{CONTRACT_TREE, INIT_CODE_TREE, TX_CONTRACT_ADDRESS_TREE};
 use crate::db::*;
 use crate::evm::Bytecode;
 use ethers::prelude::*;
@@ -36,8 +37,10 @@ pub async fn listen_blocks(pool: SqlitePool, provider: Provider<Ws>) -> anyhow::
 pub async fn handle_block(
     worker_id: usize,
     pool: SqlitePool,
+    code_db: sled::Db,
     provider: Provider<impl JsonRpcClient>,
 ) -> anyhow::Result<()> {
+    let init_code_db = code_db.open_tree(INIT_CODE_TREE)?;
     loop {
         let block_number = acquire_block_task(&pool).await?;
         if block_number.is_none() {
@@ -59,6 +62,7 @@ pub async fn handle_block(
             if tx.to.is_some() {
                 continue;
             }
+            init_code_db.insert(tx.hash().as_bytes(), tx.input.as_ref())?;
             append_tx_task(
                 &pool,
                 block_number,
@@ -78,8 +82,11 @@ pub async fn handle_block(
 pub async fn handle_tx(
     worker_id: usize,
     pool: SqlitePool,
+    code_db: sled::Db,
     provider: Provider<impl JsonRpcClient>,
 ) -> anyhow::Result<()> {
+    let tx_contract_db = code_db.open_tree(TX_CONTRACT_ADDRESS_TREE)?;
+    let contract_db = code_db.open_tree(CONTRACT_TREE)?;
     loop {
         let tx_hash = acquire_tx_task(&pool).await?;
         if tx_hash.is_none() {
@@ -101,6 +108,13 @@ pub async fn handle_tx(
             "analyze tx {} deployed to contract {}", tx_hash, contract_address
         );
         let code = provider.get_code(contract_address, None).await?;
+        if code.is_empty() {
+            info!(worker_id, "skip empty contract {}", contract_address);
+            mark_tx_task_analyzed(&pool, tx_hash).await?;
+            continue;
+        }
+        tx_contract_db.insert(tx_hash.as_bytes(), contract_address.as_bytes())?;
+        contract_db.insert(contract_address.as_bytes(), code.as_ref())?;
         let ops = Bytecode::from(code.to_vec());
         let count = ops
             .code
