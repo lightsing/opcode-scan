@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM tx_tasks\n            WHERE tx_hash = (\n                SELECT tx_hash\n                FROM tx_tasks\n                LIMIT 1\n            )\n            RETURNING tx_hash\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "tx_hash",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5d87efb478e5b32b297d1fb5a5e9ff9a663b55f2a580bd236179659a6dc78998"
+}

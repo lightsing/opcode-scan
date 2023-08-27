@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM block_tasks\n            WHERE block_number = (\n                SELECT block_number\n                FROM block_tasks\n                ORDER BY block_number ASC\n                LIMIT 1\n            )\n            RETURNING block_number",
+  "describe": {
+    "columns": [
+      {
+        "name": "block_number",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "27a6c68ad96a9807007842c68460a4cdfbb8cf47bf8a37c4fd63661d852b53e6"
+}

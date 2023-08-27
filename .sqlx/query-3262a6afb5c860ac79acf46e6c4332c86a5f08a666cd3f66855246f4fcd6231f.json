@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO tx_tasks (tx_hash) VALUES (?) ON CONFLICT(tx_hash) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "3262a6afb5c860ac79acf46e6c4332c86a5f08a666cd3f66855246f4fcd6231f"
+}

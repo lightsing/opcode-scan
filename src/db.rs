@@ -1,4 +1,4 @@
-use crate::consts::{DB_PATH, SHANGHAI_FORK};
+use crate::consts::{DB_PATH, LATEST_BLOCK_NUMBER, SHANGHAI_FORK};
 use ethers::prelude::*;
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 
@@ -24,20 +24,25 @@ pub async fn init_sqlite() -> Result<SqlitePool, sqlx::Error> {
     Ok(pool)
 }
 
-pub async fn get_latest_recorded_block(pool: &SqlitePool) -> Result<u64, sqlx::Error> {
-    Ok(
-        sqlx::query!("SELECT block_number FROM block ORDER BY block_number DESC LIMIT 1")
-            .fetch_optional(pool)
-            .await?
-            .map(|row| row.block_number as u64)
-            .unwrap_or(SHANGHAI_FORK - 1),
-    )
+pub fn get_latest_recorded_block(tree: &sled::Tree) -> Result<u64, sled::Error> {
+    tree.get(LATEST_BLOCK_NUMBER).map(|r| {
+        r.and_then(|v| bincode::deserialize(&v).ok())
+            .unwrap_or(SHANGHAI_FORK - 1)
+    })
 }
 
-pub async fn append_block_task(pool: &SqlitePool, block_number: u64) -> Result<(), sqlx::Error> {
+pub fn set_latest_recorded_block(tree: &sled::Tree, block_number: u64) -> Result<(), sled::Error> {
+    tree.insert(
+        LATEST_BLOCK_NUMBER,
+        bincode::serialize(&block_number).unwrap(),
+    )?;
+    Ok(())
+}
+
+pub async fn submit_block_task(pool: &SqlitePool, block_number: u64) -> Result<(), sqlx::Error> {
     let block_number = block_number as i64;
     sqlx::query!(
-        "INSERT INTO block (block_number) VALUES (?) ON CONFLICT(block_number) DO NOTHING",
+        "INSERT INTO block_tasks (block_number) VALUES (?) ON CONFLICT(block_number) DO NOTHING",
         block_number,
     )
     .execute(pool)
@@ -45,76 +50,115 @@ pub async fn append_block_task(pool: &SqlitePool, block_number: u64) -> Result<(
     Ok(())
 }
 
-pub async fn append_tx_task(
-    pool: &SqlitePool,
+pub async fn submit_tx_task(pool: &SqlitePool, tx_hash: H256) -> Result<(), sqlx::Error> {
+    let hash = tx_hash.as_ref();
+    sqlx::query!(
+        "INSERT INTO tx_tasks (tx_hash) VALUES (?) ON CONFLICT(tx_hash) DO NOTHING",
+        hash,
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub struct BlockTaskGuard<'a> {
+    pool: &'a SqlitePool,
     block_number: u64,
-    tx_index: u64,
+    finished: bool,
+}
+
+impl<'a> BlockTaskGuard<'a> {
+    pub async fn new(pool: &'a SqlitePool) -> Result<Option<BlockTaskGuard<'a>>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"DELETE FROM block_tasks
+            WHERE block_number = (
+                SELECT block_number
+                FROM block_tasks
+                ORDER BY block_number ASC
+                LIMIT 1
+            )
+            RETURNING block_number"#
+        )
+        .fetch_optional(pool)
+        .await?
+        .map(|r| Self {
+            pool,
+            block_number: r.block_number as u64,
+            finished: false,
+        }))
+    }
+
+    pub fn block_number(&self) -> u64 {
+        self.block_number
+    }
+
+    pub fn complete(mut self) {
+        self.finished = true;
+    }
+}
+
+impl<'a> Drop for BlockTaskGuard<'a> {
+    fn drop(&mut self) {
+        if !self.finished {
+            let pool = self.pool.clone();
+            let block_number = self.block_number;
+            tokio::spawn(async move {
+                if let Err(e) = submit_block_task(&pool, block_number).await {
+                    error!("failed to re-submit block task: {}", e);
+                }
+            });
+        }
+    }
+}
+
+pub struct TxTaskGuard<'a> {
+    pool: &'a SqlitePool,
     tx_hash: H256,
-) -> Result<(), sqlx::Error> {
-    let block_number = block_number as i64;
-    let tx_index = tx_index as i64;
-    let hash = tx_hash.as_ref();
-    sqlx::query!(
-        "INSERT INTO tx (block_number, tx_index, tx_hash) VALUES (?, ?, ?) ON CONFLICT(tx_hash) DO NOTHING",
-        block_number,
-        tx_index,
-        hash,
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
+    finished: bool,
 }
 
-pub async fn acquire_block_task(pool: &SqlitePool) -> Result<Option<u64>, sqlx::Error> {
-    Ok(sqlx::query!(
-        r#"UPDATE block 
-        SET tx_fetched = 2 
-        WHERE block_number = (SELECT block_number FROM block WHERE tx_fetched = 0 LIMIT 1)
-        RETURNING block_number"#
-    )
-    .fetch_optional(pool)
-    .await?
-    .map(|r| r.block_number as u64))
+impl<'a> TxTaskGuard<'a> {
+    pub async fn new(pool: &'a SqlitePool) -> Result<Option<TxTaskGuard<'a>>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"DELETE FROM tx_tasks
+            WHERE tx_hash = (
+                SELECT tx_hash
+                FROM tx_tasks
+                LIMIT 1
+            )
+            RETURNING tx_hash
+            "#
+        )
+        .fetch_optional(pool)
+        .await?
+        .map(|r| Self {
+            pool,
+            tx_hash: H256::from_slice(&r.tx_hash),
+            finished: false,
+        }))
+    }
+
+    pub fn tx_hash(&self) -> H256 {
+        self.tx_hash
+    }
+
+    pub fn complete(mut self) {
+        self.finished = true;
+    }
 }
 
-pub async fn mark_block_task_fetched(
-    pool: &SqlitePool,
-    block_number: u64,
-) -> Result<(), sqlx::Error> {
-    let block_number = block_number as i64;
-    sqlx::query!(
-        "UPDATE block SET tx_fetched = 1 WHERE block_number = ? AND tx_fetched = 2",
-        block_number,
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
-}
-
-pub async fn acquire_tx_task(pool: &SqlitePool) -> Result<Option<H256>, sqlx::Error> {
-    Ok(sqlx::query!(
-        r#"UPDATE tx
-        SET tx_analyzed = 2
-        WHERE tx_hash = (SELECT tx_hash FROM tx WHERE tx_analyzed = 0 LIMIT 1)
-        RETURNING tx_hash
-        "#
-    )
-    .fetch_optional(pool)
-    .await?
-    .map(|r| H256::from_slice(&r.tx_hash)))
-}
-
-// assert update row count == 1
-pub async fn mark_tx_task_analyzed(pool: &SqlitePool, tx_hash: H256) -> Result<(), sqlx::Error> {
-    let hash = tx_hash.as_ref();
-    let result = sqlx::query!(
-        "UPDATE tx SET tx_analyzed = 1 WHERE tx_hash = ? AND tx_analyzed = 2",
-        hash,
-    )
-    .execute(pool)
-    .await?;
-    assert_eq!(result.rows_affected(), 1);
-    Ok(())
+impl<'a> Drop for TxTaskGuard<'a> {
+    fn drop(&mut self) {
+        if !self.finished {
+            let pool = self.pool.clone();
+            let hash = self.tx_hash;
+            tokio::spawn(async move {
+                if let Err(e) = submit_tx_task(&pool, hash).await {
+                    error!("failed to re-submit tx task: {}", e);
+                }
+            });
+        }
+    }
 }
 
 pub async fn append_opcode_statistics(
@@ -133,16 +177,6 @@ pub async fn append_opcode_statistics(
         count,
         count,
     )
-        .execute(pool)
-        .await?;
-    Ok(())
-}
-
-pub async fn clear_pending_tasks(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    sqlx::query!("UPDATE block SET tx_fetched = 0 WHERE tx_fetched = 2",)
-        .execute(pool)
-        .await?;
-    sqlx::query!("UPDATE tx SET tx_analyzed = 0 WHERE tx_analyzed = 2",)
         .execute(pool)
         .await?;
     Ok(())

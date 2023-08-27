@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate tracing;
-use crate::consts::{CODE_DB_PATH, HTTP_PROVIDER};
-use crate::db::{clear_pending_tasks, init_sqlite};
+use crate::consts::{HTTP_PROVIDER, METADATA_TREE, SLED_DB_PATH};
+use crate::db::init_sqlite;
 use tracing_subscriber::EnvFilter;
 
 mod consts;
@@ -17,30 +17,28 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let pool = init_sqlite().await?;
-    clear_pending_tasks(&pool).await?;
-    let code_db = sled::open(CODE_DB_PATH)?;
+    let sled_db = sled::open(SLED_DB_PATH)?;
 
     let listener = tokio::spawn(tasks::listen_blocks(
         pool.clone(),
+        sled_db.open_tree(METADATA_TREE)?,
         provider::ws_provider().await?,
     ));
 
-    for (idx, key) in HTTP_PROVIDER.into_iter().enumerate() {
-        for i in 0..10 {
-            tokio::spawn(tasks::handle_block(
-                idx * 10 + i,
-                pool.clone(),
-                code_db.clone(),
-                provider::http_provider(key).await,
-            ));
-        }
-        tokio::spawn(tasks::handle_tx(
-            idx,
+    for i in 0..10 {
+        tokio::spawn(tasks::handle_block(
+            i,
             pool.clone(),
-            code_db.clone(),
-            provider::http_provider(key).await,
+            sled_db.clone(),
+            provider::http_provider(HTTP_PROVIDER).await,
         ));
     }
+    tokio::spawn(tasks::handle_tx(
+        1,
+        pool.clone(),
+        sled_db.clone(),
+        provider::http_provider(HTTP_PROVIDER).await,
+    ));
 
     listener.await??;
     Ok(())
