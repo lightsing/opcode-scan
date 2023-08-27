@@ -3,13 +3,17 @@ use crate::db::*;
 use crate::evm::Bytecode;
 use ethers::prelude::*;
 use sqlx::SqlitePool;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
+#[instrument(skip_all)]
 pub async fn listen_blocks(
     pool: SqlitePool,
     metadata: sled::Tree,
     provider: Provider<Ws>,
+    running: Arc<AtomicBool>,
 ) -> anyhow::Result<()> {
-    loop {
+    while running.load(std::sync::atomic::Ordering::SeqCst) {
         let latest_recorded_block = get_latest_recorded_block(&metadata)?;
         let latest_block = provider.get_block_number().await?.as_u64();
         info!("Latest recorded block is #{}", latest_recorded_block);
@@ -27,6 +31,9 @@ pub async fn listen_blocks(
     let mut block_stream = provider.subscribe_blocks().await?;
 
     while let Some(block) = block_stream.next().await {
+        if !running.load(std::sync::atomic::Ordering::SeqCst) {
+            break;
+        }
         let block_number = block.number.unwrap().as_u64();
         info!("new block #{} {}", block_number, block.hash.unwrap());
         submit_block_task(&pool, block_number).await?;
@@ -36,18 +43,20 @@ pub async fn listen_blocks(
     Ok(())
 }
 
+#[instrument(skip_all, fields(worker_id = %worker_id))]
 pub async fn handle_block(
     worker_id: usize,
     pool: SqlitePool,
     sled_db: sled::Db,
     provider: Provider<impl JsonRpcClient>,
+    running: Arc<AtomicBool>,
 ) -> anyhow::Result<()> {
     let init_code_db = sled_db.open_tree(INIT_CODE_TREE)?;
-    loop {
+    while running.load(std::sync::atomic::Ordering::SeqCst) {
         let guard = BlockTaskGuard::new(&pool).await?;
         if guard.is_none() {
             // sleep
-            info!(worker_id, "no block task, sleep");
+            info!("no block task, sleep");
             tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
             continue;
         }
@@ -73,25 +82,29 @@ pub async fn handle_block(
             counter += 1;
         }
         if counter != 0 {
-            info!(worker_id, "fetched {} create txs", counter);
+            info!("fetched {} create txs", counter);
         }
         guard.complete();
     }
+    info!("gracefully shutdown");
+    Ok(())
 }
 
+#[instrument(skip_all, fields(worker_id = %worker_id))]
 pub async fn handle_tx(
     worker_id: usize,
     pool: SqlitePool,
     sled_db: sled::Db,
     provider: Provider<impl JsonRpcClient>,
+    running: Arc<AtomicBool>,
 ) -> anyhow::Result<()> {
     let tx_contract_db = sled_db.open_tree(TX_CONTRACT_ADDRESS_TREE)?;
     let contract_db = sled_db.open_tree(CONTRACT_TREE)?;
-    loop {
+    while running.load(std::sync::atomic::Ordering::SeqCst) {
         let guard = TxTaskGuard::new(&pool).await?;
         if guard.is_none() {
             // sleep
-            info!(worker_id, "no tx task, sleep");
+            info!("no tx task, sleep");
             tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
             continue;
         }
@@ -99,18 +112,18 @@ pub async fn handle_tx(
         let tx_hash = guard.tx_hash();
         let tx = provider.get_transaction_receipt(tx_hash).await?.unwrap();
         if tx.status.unwrap().as_u64() == 0 {
-            info!(worker_id, "skip failed tx {}", tx_hash);
+            info!("skip failed tx {}", tx_hash);
             guard.complete();
             continue;
         }
         let contract_address = tx.contract_address.unwrap();
         info!(
-            worker_id,
-            "analyze tx {} deployed to contract {}", tx_hash, contract_address
+            "analyze tx {} deployed to contract {}",
+            tx_hash, contract_address
         );
         let code = provider.get_code(contract_address, None).await?;
         if code.is_empty() {
-            info!(worker_id, "skip empty contract {}", contract_address);
+            info!("skip empty contract {}", contract_address);
             guard.complete();
             continue;
         }
@@ -140,4 +153,6 @@ pub async fn handle_tx(
         }
         guard.complete();
     }
+    info!("gracefully shutdown");
+    Ok(())
 }
