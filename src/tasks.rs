@@ -1,6 +1,6 @@
 use crate::consts::{CONTRACT_TREE, INIT_CODE_TREE, TX_CONTRACT_ADDRESS_TREE};
 use crate::db::*;
-use crate::evm::Bytecode;
+use crate::evm::{Bytecode, OpcodeId};
 use ethers::prelude::*;
 use sqlx::SqlitePool;
 use std::sync::atomic::AtomicBool;
@@ -66,7 +66,7 @@ pub async fn handle_block(
             .await?
             .unwrap();
         assert_eq!(block.number.unwrap().as_u64(), guard.block_number());
-        info!(
+        trace!(
             worker_id,
             "fetching block #{} {}",
             block.number.unwrap().as_u64(),
@@ -82,7 +82,7 @@ pub async fn handle_block(
             counter += 1;
         }
         if counter != 0 {
-            info!("fetched {} create txs", counter);
+            trace!("fetched {} create txs", counter);
         }
         guard.complete();
     }
@@ -112,31 +112,39 @@ pub async fn handle_tx(
         let tx_hash = guard.tx_hash();
         let tx = provider.get_transaction_receipt(tx_hash).await?.unwrap();
         if tx.status.unwrap().as_u64() == 0 {
-            info!("skip failed tx {}", tx_hash);
+            trace!("skip failed tx {}", tx_hash);
             guard.complete();
             continue;
         }
         let contract_address = tx.contract_address.unwrap();
-        info!(
+        trace!(
             "analyze tx {} deployed to contract {}",
-            tx_hash, contract_address
+            tx_hash,
+            contract_address
         );
         let code = provider.get_code(contract_address, None).await?;
         if code.is_empty() {
-            info!("skip empty contract {}", contract_address);
+            trace!("skip empty contract {}", contract_address);
             guard.complete();
             continue;
         }
         tx_contract_db.insert(tx_hash.as_bytes(), contract_address.as_bytes())?;
         contract_db.insert(contract_address.as_bytes(), code.as_ref())?;
         let ops = Bytecode::from(code.to_vec());
-        let count = ops
+        let opcodes = ops
             .code
             .into_iter()
             .filter(|op| op.is_code)
-            .map(|op| op.value)
+            .map(|op| OpcodeId::from(op.value))
+            .collect::<Vec<_>>();
+        if opcodes.iter().any(|opcode| opcode.is_other_invalid()) {
+            warn!("contract {:?} contains invalid opcodes", contract_address,);
+        }
+
+        let count = opcodes
+            .iter()
             .fold([0usize; 256], |mut acc, x| {
-                acc[x as usize] += 1;
+                acc[x.as_u8() as usize] += 1;
                 acc
             })
             .into_iter()

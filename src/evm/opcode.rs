@@ -502,6 +502,13 @@ impl OpcodeId {
             None
         }
     }
+
+    pub fn is_other_invalid(&self) -> bool {
+        match self {
+            OpcodeId::INVALID(b) => *b != 0xFE,
+            _ => false,
+        }
+    }
 }
 
 impl From<u8> for OpcodeId {

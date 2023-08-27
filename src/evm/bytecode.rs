@@ -1,6 +1,7 @@
 //! EVM byte code generator
 
 use crate::evm::opcode::OpcodeId;
+use cbor::Decoder as CborDecoder;
 
 /// Helper struct that represents a single element in a bytecode.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
@@ -38,7 +39,8 @@ impl Bytecode {
 }
 
 impl From<Vec<u8>> for Bytecode {
-    fn from(input: Vec<u8>) -> Self {
+    fn from(mut input: Vec<u8>) -> Self {
+        trim_metadata(&mut input);
         let mut code = Bytecode::default();
 
         let mut input_iter = input.iter();
@@ -64,4 +66,26 @@ impl From<Vec<u8>> for Bytecode {
 
         code
     }
+}
+
+fn trim_metadata(bytecode: &mut Vec<u8>) {
+    if bytecode.len() <= 2 {
+        return;
+    }
+    // cbor length is last 2 bytes of bytecode, u16 big endian
+    let cbor_length =
+        u16::from_be_bytes([bytecode[bytecode.len() - 2], bytecode[bytecode.len() - 1]]) as usize;
+    // if bytecode length is less than cbor length, it's not a valid cbor
+    if bytecode.len() - 2 < cbor_length {
+        return;
+    }
+    let mut decode =
+        CborDecoder::from_bytes(&bytecode[bytecode.len() - 2 - cbor_length..bytecode.len() - 2]);
+    let mut items = decode.items();
+    while let Some(item) = items.next() {
+        if let Err(_) = item {
+            return;
+        }
+    }
+    bytecode.truncate(bytecode.len() - 2 - cbor_length);
 }

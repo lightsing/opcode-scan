@@ -282,6 +282,12 @@ checksum = "c3ac9f8b63eca6fd385229b3675f6cc0dc5c8a5c8a54a59d4f52ffd670d87b0c"
 
 [[package]]
 name = "byteorder"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
+
+[[package]]
+name = "byteorder"
 version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
@@ -346,6 +352,16 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "cbor"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e56053652b4b5c0ded5ae6183c7cd547ad2dd6bcce149658bef052a4995533bd"
+dependencies = [
+ "byteorder 0.5.3",
+ "rustc-serialize",
 ]
 
 [[package]]
@@ -1172,7 +1188,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "835c052cb0c08c1acf6ffd71c022172e18723949c8282f2b9f27efbc51e64534"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
  "rand",
  "rustc-hex",
  "static_assertions",
@@ -1363,7 +1379,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
 ]
 
 [[package]]
@@ -1989,7 +2005,7 @@ version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc84195820f291c7697304f3cbdadd1cb7199c0efc917ff5eafd71225c136151"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
  "lazy_static",
  "libm",
  "num-integer",
@@ -2083,9 +2099,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "cbor",
  "ctrlc",
  "ethers",
  "futures",
+ "hex",
  "sled",
  "sqlx",
  "tokio",
@@ -2724,7 +2742,7 @@ version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ab43bb47d23c1a631b4b680199a45255dce26fa9ab2fa902581f624ff13e6a8"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
  "const-oid",
  "digest",
  "num-bigint-dig",
@@ -2751,6 +2769,12 @@ name = "rustc-hex"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
+
+[[package]]
+name = "rustc-serialize"
+version = "0.3.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"
 
 [[package]]
 name = "rustc_version"
@@ -3204,7 +3228,7 @@ checksum = "dd4cef4251aabbae751a3710927945901ee1d97ee96d757f6880ebb9a79bfd53"
 dependencies = [
  "ahash",
  "atoi",
- "byteorder",
+ "byteorder 1.4.3",
  "bytes",
  "crc",
  "crossbeam-queue",
@@ -3283,7 +3307,7 @@ dependencies = [
  "atoi",
  "base64 0.21.2",
  "bitflags 2.4.0",
- "byteorder",
+ "byteorder 1.4.3",
  "bytes",
  "crc",
  "digest",
@@ -3325,7 +3349,7 @@ dependencies = [
  "atoi",
  "base64 0.21.2",
  "bitflags 2.4.0",
- "byteorder",
+ "byteorder 1.4.3",
  "crc",
  "dotenvy",
  "etcetera",
@@ -3793,7 +3817,7 @@ version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e862a1c4128df0112ab625f55cd5c934bcb4312ba80b39ae4b4835a3fd58e649"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
  "bytes",
  "data-encoding",
  "http",
@@ -3819,7 +3843,7 @@ version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76f64bba2c53b04fcab63c01a7d7427eadc821e3bc48c34dc9ba29c501164b52"
 dependencies = [
- "byteorder",
+ "byteorder 1.4.3",
  "crunchy",
  "hex",
  "static_assertions",
@@ -4200,7 +4224,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "760394e246e4c28189f19d488c058bf16f564016aefac5d32bb1f3b51d5e9261"
 dependencies = [
  "aes",
- "byteorder",
+ "byteorder 1.4.3",
  "bzip2",
  "constant_time_eq",
  "crc32fast",
